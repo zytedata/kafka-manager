@@ -197,7 +197,7 @@ object ActorModel {
   case class TopicDescription(topic: String,
                               description: (Int,String),
                               partitionState: Option[Map[String, String]], 
-                              partitionOffsets: Future[PartitionOffsetsCapture],
+                              partitionOffsets: PartitionOffsetsCapture,
                               config:Option[(Int,String)]) extends  QueryResponse
   case class TopicDescriptions(descriptions: IndexedSeq[TopicDescription], lastUpdateMillis: Long) extends QueryResponse
 
@@ -236,6 +236,7 @@ object ActorModel {
     import org.json4s.jackson.JsonMethods._
     import org.json4s.scalaz.JsonScalaz
     import org.json4s.scalaz.JsonScalaz._
+    import org.json4s.JValue
 
     import scala.language.reflectiveCalls
     import scalaz.Validation.FlatMap._
@@ -243,6 +244,14 @@ object ActorModel {
     import scalaz.syntax.applicative._
 
     val DEFAULT_SECURE : JsonScalaz.Result[Boolean] = false.successNel
+
+    def getSecurityProtocol(protocol: String, configJson: JValue): SecurityProtocol = {
+      val protocolFromListenerName = (configJson \ "listener_security_protocol_map" \ protocol).values
+      if (protocolFromListenerName == None)
+        SecurityProtocol(protocol)
+      else
+        SecurityProtocol(protocolFromListenerName.toString)
+    }
 
     implicit def from(brokerId: Int, config: String): Validation[NonEmptyList[JsonScalaz.Error],BrokerIdentity]= {
       val json = parse(config)
@@ -259,7 +268,7 @@ object ActorModel {
                   Validation.fromTryCatchNonFatal {
                     val arr1 = endpoint.split("://")
                     val arr2 = arr1(1).split(":")
-                    (arr2(0), arr2(1).toInt, SecurityProtocol(arr1(0).toUpperCase))
+                    (arr2(0), arr2(1).toInt, getSecurityProtocol(arr1(0).toUpperCase, json))
                   }.leftMap[JsonScalaz.Error](t => {
                     error(s"Failed to parse endpoint : $endpoint", t)
                     UncategorizedError("endpoints", t.getMessage, List.empty)
@@ -492,31 +501,10 @@ import scala.language.reflectiveCalls
       // Assign the partition data to the TPI format
       partMap.map { case (partition, replicas) =>
         val partitionNum = partition.toInt
-        // block on the futures that hold the latest produced offset in each partition
-        val partitionOffsets: Option[PartitionOffsetsCapture] = Try {
-          Await.ready(td.partitionOffsets, 2 second).value.get match {
-            case Success(offsetMap) =>
-              Option(offsetMap)
-            case Failure(e) =>
-              None
-          }
-        } match  {
-          case Failure(e) => None
-          case Success(r) => r
-        }
-
-        val previousPartitionOffsets: Option[PartitionOffsetsCapture] = tdPrevious.flatMap {
-          ptd => Try {
-            Await.ready(ptd.partitionOffsets, 2 second).value.get match {
-              case Success(offsetMap) =>
-                Option(offsetMap)
-              case Failure(e) =>
-                None
-            }
-          } match {
-            case Failure(e) => None
-            case Success(r) => r
-          }
+        val partitionOffsets: Option[PartitionOffsetsCapture] = Some(td.partitionOffsets)
+        val previousPartitionOffsets: Option[PartitionOffsetsCapture] = tdPrevious match {
+          case Some(tdP) => Some(tdP.partitionOffsets)
+          case None => None
         }
         
         val currentOffsetOption = partitionOffsets.flatMap(_.offsetsMap.get(partitionNum))
@@ -641,20 +629,11 @@ import scala.language.reflectiveCalls
     def from(ctd: ConsumedTopicDescription, clusterContext: ClusterContext): ConsumedTopicState = {
       val partitionOffsetsMap = ctd.partitionOffsets.getOrElse(Map.empty)
       val partitionOwnersMap = ctd.partitionOwners.getOrElse(Map.empty)
-      // block on the futures that hold the latest produced offset in each partition
-      val topicOffsetsOptMap: Map[Int, Long]= ctd.topicDescription.map{td: TopicDescription =>
-        Try {
-          Await.ready(td.partitionOffsets, 2 second).value.get match {
-            case Success(offsetMap) =>
-              offsetMap.offsetsMap
-            case Failure(e) =>
-              Map.empty[Int, Long]
-          }
-        } match {
-          case Failure(e) => Map.empty[Int, Long]
-          case Success(r) => r
-        }
-      }.getOrElse(Map.empty)
+
+      val topicOffsetsOptMap: Map[Int, Long]= ctd.topicDescription match {
+        case Some(td) => td.partitionOffsets.offsetsMap
+        case None => Map.empty
+      }
 
       ConsumedTopicState(
         ctd.consumer, 
