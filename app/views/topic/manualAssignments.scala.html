@@ -88,6 +88,10 @@ cf: kafka.manager.features.ClusterFeatures, messages: play.api.i18n.Messages, me
                    value='@partitionAssignment._1' readonly/>
             @partitionAssignment._1
         </h4>
+
+        <pre>@partitionAssignment</pre>
+        <pre>@partitionAssignment.toString</pre>
+
         @partitionAssignment._2.zipWithIndex.map { case (assignment, assgnIndex) =>
             <div class="partition-cell">
                 <table>
