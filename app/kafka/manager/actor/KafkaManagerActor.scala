@@ -14,6 +14,7 @@ import kafka.manager.actor.cluster.{ClusterManagerActor, ClusterManagerActorConf
 import kafka.manager.base.{LongRunningPoolConfig, BaseZkPath, CuratorAwareActor, BaseQueryCommandActor}
 import kafka.manager.model.{ClusterTuning, ClusterConfig, CuratorConfig}
 import kafka.manager.model.ActorModel.CMShutdown
+import kafka.manager.utils.ZkUtils
 import org.apache.curator.framework.CuratorFramework
 import org.apache.curator.framework.recipes.cache.PathChildrenCache.StartMode
 import org.apache.curator.framework.recipes.cache.{PathChildrenCache, PathChildrenCacheEvent, PathChildrenCacheListener}
@@ -146,10 +147,13 @@ class KafkaManagerActor(kafkaManagerConfig: KafkaManagerActorConfig)
       Future {
         try {
           log.debug(s"Acquiring kafka manager mutex...")
-          mutex.acquire(kafkaManagerConfig.mutexTimeoutMillis,TimeUnit.MILLISECONDS)
-          KMCommandResult(Try {
-            fn
-          })
+          if(mutex.acquire(kafkaManagerConfig.mutexTimeoutMillis,TimeUnit.MILLISECONDS)) {
+            KMCommandResult(Try {
+              fn
+            })
+          } else {
+            throw new RuntimeException("Failed to acquire lock for kafka manager command")
+          }
         } finally {
           if(mutex.isAcquiredInThisProcess) {
             log.debug(s"Releasing kafka manger mutex...")
@@ -225,6 +229,9 @@ class KafkaManagerActor(kafkaManagerConfig: KafkaManagerActorConfig)
 
       case KMGetAllClusters =>
         sender ! KMClusterList(clusterConfigMap.values.toIndexedSeq, pendingClusterConfigMap.values.toIndexedSeq)
+
+      case KSGetScheduleLeaderElection =>
+        sender ! ZkUtils.readDataMaybeNull(curator, ZkUtils.SchedulePreferredLeaderElectionPath)._1.getOrElse("{}")
 
       case KMGetClusterConfig(name) =>
         sender ! KMClusterConfigResult(Try {

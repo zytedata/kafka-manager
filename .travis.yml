@@ -1,16 +1,16 @@
 language: scala
 sudo: true
-jdk: oraclejdk8
+jdk: openjdk11
 install: true
 script: travis_wait 30 ./sbt clean coverage assembly
 scala:
-  - 2.11.7
+  - 2.12.10
 #after_success:
 #  - sbt coverageReport coveralls
 
 cache:
   directories:
-  - $HOME/.sbt/0.13/dependency
+  - $HOME/.sbt/1.0/dependency
   - $HOME/.sbt/boot/scala*
   - $HOME/.sbt/launchers
   - $HOME/.ivy2/cache

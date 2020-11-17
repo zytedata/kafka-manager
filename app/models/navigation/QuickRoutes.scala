@@ -14,9 +14,9 @@ object QuickRoutes {
   import models.navigation.BreadCrumbs._
 
   val baseRoutes : Map[String, () => Call] = Map(
-    "Clusters" -> controllers.routes.Application.index,
-    "List" -> controllers.routes.Application.index,
-    "Add Cluster" -> controllers.routes.Cluster.addCluster
+    "Clusters" -> { () => controllers.routes.Application.index() },
+    "List" -> { () => controllers.routes.Application.index() },
+    "Add Cluster" -> { () => controllers.routes.Cluster.addCluster() }
   )
   val clusterRoutes : Map[String, String => Call] = Map(
     "Update Cluster" -> controllers.routes.Cluster.updateCluster,
@@ -27,6 +27,7 @@ object QuickRoutes {
     "List" -> controllers.routes.Topic.topics,
     "Create" -> controllers.routes.Topic.createTopic,
     "Preferred Replica Election" -> controllers.routes.PreferredReplicaElection.preferredReplicaElection,
+    "Schedule Leader Election" -> controllers.routes.PreferredReplicaElection.scheduleRunElection,
     "Reassign Partitions" -> controllers.routes.ReassignPartitions.reassignPartitions,
     "Logkafkas" -> controllers.routes.Logkafka.logkafkas,
     "List Logkafka" -> controllers.routes.Logkafka.logkafkas,

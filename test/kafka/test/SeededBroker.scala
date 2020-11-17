@@ -4,6 +4,7 @@
  */
 package kafka.test
 
+import java.time.Duration
 import java.util.{Properties, UUID}
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -46,6 +47,8 @@ class SeededBroker(seedTopic: String, partitions: Int) {
   //seed with table
   {
     adminUtils.createTopic(zookeeper, Set(0),seedTopic,partitions,1)
+    Thread.sleep(5000)
+    require(adminUtils.topicExists(zookeeper, seedTopic), "Failed to create seed topic!")
   }
 
   private[this] val commonConsumerConfig = new Properties()
@@ -242,7 +245,7 @@ case class NewKafkaManagedConsumer(topic: String,
   def read(write: (String)=>Unit) = {
     import collection.JavaConverters._
     while (true) {
-      val records : ConsumerRecords[String, String] = consumer.poll(pollMillis)
+      val records : ConsumerRecords[String, String] = consumer.poll(Duration.ofMillis(pollMillis))
       for(record <- records.asScala) {
         write(record.value())
       }

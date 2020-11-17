@@ -16,7 +16,7 @@ import scalaz.Validation.FlatMap._
 /**
   * @author hiral
   */
-case class CuratorConfig(zkConnect: String, zkMaxRetry: Int = 100, baseSleepTimeMs : Int = 100, maxSleepTimeMs: Int = 1000)
+case class CuratorConfig(zkConnect: String, zkMaxRetry: Int = 10, baseSleepTimeMs : Int = 100, maxSleepTimeMs: Int = 1000)
 
 sealed trait KafkaVersion
 case object Kafka_0_8_1_1 extends KafkaVersion {
@@ -80,6 +80,62 @@ case object Kafka_1_1_0 extends KafkaVersion {
   override def toString = "1.1.0"
 }
 
+case object Kafka_1_1_1 extends KafkaVersion {
+  override def toString = "1.1.1"
+}
+
+case object Kafka_2_0_0 extends KafkaVersion {
+  override def toString = "2.0.0"
+}
+
+case object Kafka_2_1_0 extends KafkaVersion {
+  override def toString = "2.1.0"
+}
+
+case object Kafka_2_1_1 extends KafkaVersion {
+  override def toString = "2.1.1"
+}
+
+case object Kafka_2_2_0 extends KafkaVersion {
+  override def toString = "2.2.0"
+}
+
+case object Kafka_2_2_1 extends KafkaVersion {
+  override def toString = "2.2.1"
+}
+
+case object Kafka_2_2_2 extends KafkaVersion {
+  override def toString = "2.2.2"
+}
+
+case object Kafka_2_3_0 extends KafkaVersion {
+  override def toString = "2.3.0"
+}
+
+case object Kafka_2_3_1 extends KafkaVersion {
+  override def toString = "2.3.1"
+}
+
+case object Kafka_2_4_0 extends KafkaVersion {
+  override def toString = "2.4.0"
+}
+
+case object Kafka_2_4_1 extends KafkaVersion {
+  override def toString = "2.4.1"
+}
+
+case object Kafka_2_5_0 extends KafkaVersion {
+  override def toString = "2.5.0"
+}
+
+case object Kafka_2_5_1 extends KafkaVersion {
+  override def toString = "2.5.1"
+}
+
+case object Kafka_2_6_0 extends KafkaVersion {
+  override def toString = "2.6.0"
+}
+
 object KafkaVersion {
   val supportedVersions: Map[String,KafkaVersion] = Map(
     "0.8.1.1" -> Kafka_0_8_1_1,
@@ -99,7 +155,21 @@ object KafkaVersion {
     "0.11.0.2" -> Kafka_0_11_0_2,
     "1.0.0" -> Kafka_1_0_0,
     "1.0.1" -> Kafka_1_0_1,
-    "1.1.0" -> Kafka_1_1_0
+    "1.1.0" -> Kafka_1_1_0,
+    "1.1.1" -> Kafka_1_1_1,
+    "2.0.0" -> Kafka_2_0_0,
+    "2.1.0" -> Kafka_2_1_0,
+    "2.1.1" -> Kafka_2_1_1,
+    "2.2.0" -> Kafka_2_2_0,
+    "2.2.1" -> Kafka_2_2_1,
+    "2.2.2" -> Kafka_2_2_2,
+    "2.3.0" -> Kafka_2_3_0,
+    "2.3.1" -> Kafka_2_3_1,
+    "2.4.0" -> Kafka_2_4_0,
+    "2.4.1" -> Kafka_2_4_1,
+    "2.5.0" -> Kafka_2_5_0,
+    "2.5.1" -> Kafka_2_5_1,
+    "2.6.0" -> Kafka_2_6_0
   )
 
   val formSelectList : IndexedSeq[(String,String)] = supportedVersions.toIndexedSeq.filterNot(_._1.contains("beta")).map(t => (t._1,t._2.toString)).sortWith((a, b) => sortVersion(a._1, b._1))
@@ -155,7 +225,7 @@ object ClusterConfig {
   def apply(name: String
             , version : String
             , zkHosts: String
-            , zkMaxRetry: Int = 100
+            , zkMaxRetry: Int = 10
             , jmxEnabled: Boolean
             , jmxUser: Option[String]
             , jmxPass: Option[String]
@@ -436,6 +506,10 @@ case object SASL_PLAINTEXT extends SecurityProtocol {
   val stringId = "SASL_PLAINTEXT"
   val secure = true
 }
+case object PLAINTEXTSASL extends SecurityProtocol {
+  val stringId = "PLAINTEXTSASL"
+  val secure = true
+}
 case object SASL_SSL extends SecurityProtocol {
   val stringId = "SASL_SSL"
   val secure = true
@@ -451,6 +525,7 @@ case object PLAINTEXT extends SecurityProtocol {
 object SecurityProtocol {
   private[this] val typesMap: Map[String, SecurityProtocol] = Map(
     SASL_PLAINTEXT.stringId -> SASL_PLAINTEXT
+    , PLAINTEXTSASL.stringId -> PLAINTEXTSASL
     , SASL_SSL.stringId -> SASL_SSL
     , SSL.stringId -> SSL
     , PLAINTEXT.stringId -> PLAINTEXT
@@ -478,12 +553,17 @@ case object SASL_MECHANISM_SCRAM512 extends SASLmechanism {
   val stringId = "SCRAM-SHA-512"
 }
 
+case object SASL_MECHANISM_OAUTHBEARER extends SASLmechanism {
+  val stringId = "OAUTHBEARER"
+}
+
 object SASLmechanism {
   private[this] val typesMap: Map[String, SASLmechanism] = Map(
    SASL_MECHANISM_PLAIN.stringId -> SASL_MECHANISM_PLAIN
     , SASL_MECHANISM_GSSAPI.stringId -> SASL_MECHANISM_GSSAPI
     , SASL_MECHANISM_SCRAM256.stringId -> SASL_MECHANISM_SCRAM256
     , SASL_MECHANISM_SCRAM512.stringId -> SASL_MECHANISM_SCRAM512
+    , SASL_MECHANISM_OAUTHBEARER.stringId -> SASL_MECHANISM_OAUTHBEARER
   )
 
   val formSelectList : IndexedSeq[(String,String)] = IndexedSeq(("DEFAULT", "DEFAULT")) ++ typesMap.toIndexedSeq.map(t => (t._1,t._2.stringId))

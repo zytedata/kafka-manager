@@ -18,33 +18,24 @@
 package kafka.manager.utils.one10
 import java.nio.ByteBuffer
 
+import org.apache.kafka.clients.admin.{ConsumerGroupDescription, MemberDescription}
 import org.apache.kafka.clients.consumer.internals.ConsumerProtocol
 import org.apache.kafka.common.requests.DescribeGroupsResponse
 import org.apache.kafka.common.utils.Utils
 
 object MemberMetadata {
   import collection.JavaConverters._
-  def from(groupId: String, groupSummary: DescribeGroupsResponse.GroupMetadata, memberSummary: DescribeGroupsResponse.GroupMember) : MemberMetadata = {
-    val assignment = ConsumerProtocol.deserializeAssignment(ByteBuffer.wrap(Utils.readBytes(memberSummary.memberAssignment)))
-    val topics: Set[String] = {
-      try {
-        val subscription = ConsumerProtocol.deserializeSubscription(ByteBuffer.wrap(Utils.readBytes(memberSummary.memberMetadata())))
-        subscription.topics().asScala.toSet
-      } catch {
-        case e: Exception =>
-          assignment.partitions().asScala.map(tp => tp.topic()).toSet
-      }
-    }
+  def from(groupId: String, groupSummary: ConsumerGroupDescription, memberSummary: MemberDescription) : MemberMetadata = {
+    val assignment = memberSummary.assignment().topicPartitions().asScala.map(tp => tp.topic() -> tp.partition()).toSet
     MemberMetadata(
-      memberSummary.memberId
+      memberSummary.consumerId()
       , groupId
       , memberSummary.clientId
-      , memberSummary. clientHost
-      , groupSummary.protocolType()
-      , List((groupSummary.protocol, topics))
-      , assignment.partitions().asScala.map(tp => tp.topic() -> tp.partition()).toSet
+      , memberSummary.host()
+      , "(n/a on backfill)"
+      , List.empty
+      , assignment
     )
-
   }
 }
 
