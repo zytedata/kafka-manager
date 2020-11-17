@@ -12,4 +12,4 @@ WORKDIR /app
 
 EXPOSE 9000
 
-ENTRYPOINT ["/app/bin/kafka-manager"]
+ENTRYPOINT ["/app/bin/cmak"]
