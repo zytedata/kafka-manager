@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  build:
+    working_directory: /app
+    docker:
+      - image: docker:20.10.23-git
+    environment:
+      image: images.scrapinghub.com/kafka-manager
+    steps:
+      - checkout
+      - setup_remote_docker
+
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t ${image}/${CIRCLE_BRANCH}:${CIRCLE_SHA1:0:7} .
+
+      - deploy:
+          name: Push Docker image to our internal registry
+          command: |
+            set -x
+            docker login -u "$DOCKER_USER" -p "$DOCKER_PASS" images.scrapinghub.com
+            image_built="${image}/${CIRCLE_BRANCH}:${CIRCLE_SHA1:0:7}"
+            docker push ${image_built}
+
+            tags=$(git tag -l --points-at $CIRCLE_SHA1)
+
+            [[ "${CIRCLE_BRANCH}" == "master" ]] && tags+=" latest"
+
+            if [ -n "$tags" ]; then
+              set -e
+
+              for tag in $tags; do
+                repo=$image/${CIRCLE_BRANCH}:$tag
+                docker tag $image_built $repo
+                docker push $repo
+              done
+            fi
