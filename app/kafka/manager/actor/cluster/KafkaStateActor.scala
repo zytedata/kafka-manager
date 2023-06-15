@@ -186,7 +186,7 @@ class KafkaAdminClient(context: => ActorContext, adminClientActorPath: ActorPath
 
 
 object KafkaManagedOffsetCache {
-  val supportedVersions: Set[KafkaVersion] = Set(Kafka_0_8_2_0, Kafka_0_8_2_1, Kafka_0_8_2_2, Kafka_0_9_0_0, Kafka_0_9_0_1, Kafka_0_10_0_0, Kafka_0_10_0_1, Kafka_0_10_1_0, Kafka_0_10_1_1, Kafka_0_10_2_0, Kafka_0_10_2_1, Kafka_0_11_0_0, Kafka_0_11_0_2, Kafka_1_0_0, Kafka_1_0_1, Kafka_1_1_0, Kafka_1_1_1, Kafka_2_0_0, Kafka_2_1_0, Kafka_2_1_1, Kafka_2_2_0, Kafka_2_2_1, Kafka_2_2_2, Kafka_2_3_0, Kafka_2_2_1, Kafka_2_4_0, Kafka_2_4_1, Kafka_2_5_0, Kafka_2_5_1, Kafka_2_6_0)
+  val supportedVersions: Set[KafkaVersion] = Set(Kafka_0_8_2_0, Kafka_0_8_2_1, Kafka_0_8_2_2, Kafka_0_9_0_0, Kafka_0_9_0_1, Kafka_0_10_0_0, Kafka_0_10_0_1, Kafka_0_10_1_0, Kafka_0_10_1_1, Kafka_0_10_2_0, Kafka_0_10_2_1, Kafka_0_11_0_0, Kafka_0_11_0_2, Kafka_1_0_0, Kafka_1_0_1, Kafka_1_1_0, Kafka_1_1_1, Kafka_2_0_0, Kafka_2_1_0, Kafka_2_1_1, Kafka_2_2_0, Kafka_2_2_1, Kafka_2_2_2, Kafka_2_3_0, Kafka_2_2_1, Kafka_2_4_0, Kafka_2_4_1, Kafka_2_5_0, Kafka_2_5_1, Kafka_2_6_0, Kafka_2_7_0, Kafka_2_8_0, Kafka_2_8_1, Kafka_3_0_0, Kafka_3_1_0, Kafka_3_1_1, Kafka_3_2_0)
   val ConsumerOffsetTopic = "__consumer_offsets"
 
   def isSupported(version: KafkaVersion) : Boolean = {
@@ -996,6 +996,8 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
 
   private[this] val topicsConfigPathCache = new PathChildrenCache(config.curator,ZkUtils.TopicConfigPath,true)
 
+  private[this] val brokerConfigPathCache = new PathChildrenCache(config.curator,ZkUtils.BrokerConfigPath,true)
+
   private[this] val brokersPathCache = new PathChildrenCache(config.curator,ZkUtils.BrokerIdsPath,true)
 
   private[this] val adminPathCache = new PathChildrenCache(config.curator,ZkUtils.AdminPath,true)
@@ -1113,6 +1115,8 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
     topicsTreeCache.start()
     log.info("Starting topics config path cache...")
     topicsConfigPathCache.start(StartMode.BUILD_INITIAL_CACHE)
+    log.info("Starting brokers config path cache...")
+    brokerConfigPathCache.start(StartMode.BUILD_INITIAL_CACHE)
     log.info("Starting brokers path cache...")
     brokersPathCache.start(StartMode.BUILD_INITIAL_CACHE)
     log.info("Starting admin path cache...")
@@ -1162,6 +1166,8 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
     Try(brokersPathCache.close())
     log.info("Shutting down topics config path cache...")
     Try(topicsConfigPathCache.close())
+    log.info("Shutting down brokers config path cache...")
+    Try(brokerConfigPathCache.close())
     log.info("Shutting down topics tree cache...")
     Try(topicsTreeCache.close())
 
@@ -1183,6 +1189,11 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
     }
 
     partitionOffsets
+  }
+
+  def getBrokerDescription(broker:Int): Option[BrokerDescription] ={
+    val brokerConfig = getBrokerConfigString(broker)
+    brokerConfig.map(c=> BrokerDescription(broker,Option(c)))
   }
 
   def getTopicDescription(topic: String, interactive: Boolean) : Option[TopicDescription] = {
@@ -1226,6 +1237,12 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
   private[this] def getTopicConfigString(topic: String) : Option[(Int,String)] = {
     val data: mutable.Buffer[ChildData] = topicsConfigPathCache.getCurrentData.asScala
     val result: Option[ChildData] = data.find(p => p.getPath.endsWith("/" + topic))
+    result.map(cd => (cd.getStat.getVersion,asString(cd.getData)))
+  }
+
+  private[this] def getBrokerConfigString(broker: Int) : Option[(Int,String)] = {
+    val data: mutable.Buffer[ChildData] = brokerConfigPathCache.getCurrentData.asScala
+    val result: Option[ChildData] = data.find(p => p.getPath.endsWith("/" + broker.toString))
     result.map(cd => (cd.getStat.getVersion,asString(cd.getData)))
   }
 
@@ -1290,6 +1307,9 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
 
       case KSGetTopicDescription(topic) =>
         sender ! getTopicDescription(topic, false)
+
+      case KSGetBrokerDescription(broker)=>
+        sender ! getBrokerDescription(broker)
 
       case KSGetTopicDescriptions(topics) =>
         sender ! TopicDescriptions(topics.toIndexedSeq.flatMap(getTopicDescription(_, false)), topicsTreeCacheLastUpdateMillis)
@@ -1558,4 +1578,3 @@ class KafkaStateActor(config: KafkaStateActorConfig) extends BaseClusterQueryCom
     }
   }
 }
-

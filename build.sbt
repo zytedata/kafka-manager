@@ -5,7 +5,7 @@
 name := """cmak"""
 
 /* For packaging purposes, -SNAPSHOT MUST contain a digit */
-version := "3.0.0.5"
+version := "3.0.0.7"
 
 scalaVersion := "2.12.10"
 
@@ -28,7 +28,7 @@ libraryDependencies ++= Seq(
   "com.google.code.findbugs" % "jsr305" % "3.0.2",
   "org.webjars" %% "webjars-play" % "2.6.3",
   "org.webjars" % "bootstrap" % "4.3.1",
-  "org.webjars" % "jquery" % "3.3.1-2",
+  "org.webjars" % "jquery" % "3.5.1",
   "org.webjars" % "backbonejs" % "1.3.3",
   "org.webjars" % "underscorejs" % "1.9.0",
   "org.webjars" % "dustjs-linkedin" % "2.7.2",
