@@ -1,7 +1,7 @@
-FROM alpine:3.4
+FROM alpine:3
 
 RUN apk update && \
-    apk add bash openssl wget openjdk8 nodejs openjdk8-jre
+    apk add bash openssl wget openjdk11 nodejs openjdk11-jre
 
 COPY . /tmp/kafka-manager
 RUN cd /tmp/kafka-manager && ./sbt clean dist
