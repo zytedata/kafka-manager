@@ -1,4 +1,12 @@
-version: 2
+version: 2.1
+
+# CircleCI stopped accepting `version: 2` configs (2026-09-21). Run the job
+# from an explicit workflow instead of relying on the implicit `build` job.
+workflows:
+  build-and-push:
+    jobs:
+      - build
+
 jobs:
   build:
     working_directory: /app
@@ -15,7 +23,9 @@ jobs:
           command: |
             docker build -t ${image}/${CIRCLE_BRANCH}:${CIRCLE_SHA1:0:7} .
 
-      - deploy:
+      # `deploy` is a deprecated step type; this job has no parallelism, so
+      # `run` behaves the same.
+      - run:
           name: Push Docker image to our internal registry
           command: |
             set -x
